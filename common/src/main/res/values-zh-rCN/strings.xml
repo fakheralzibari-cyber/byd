@@ -672,6 +672,7 @@
     <string name="song_on_hud_description">无导航指引时显示手机提供的曲名或歌词，导航方向和道路名称优先。</string>
     <string name="hotspot_network_not_ready">热点网络未就绪</string>
     <string name="first_tcp_timeout">等待 iPhone 接入 CarPlay 超时</string>
+    <string name="iphone_not_on_wifi">iPhone 已接受 CarPlay，但未加入车机 Wi-Fi。请在 DiPlay 中确认保存的热点名称和密码与车机完全一致，并在 iPhone 上为该网络打开“自动加入”。</string>
     <string name="wireless_startup_retries_exhausted">自动重试已停止，请检查连接后手动重试。</string>
     <string name="retry_carplay_connection">重新连接</string>
     <string name="carplay_dock">CarPlay 程序栏</string>

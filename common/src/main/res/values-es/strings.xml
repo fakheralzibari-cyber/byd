@@ -689,4 +689,5 @@
     <string name="setup_badge_adb">Requiere ADB por red</string>
     <string name="setup_done_title">Todo listo</string>
     <string name="setup_done_description">Conecta tu iPhone ahora. Puedes volver a abrir esta guía desde Ajustes.</string>
+    <string name="iphone_not_on_wifi">El iPhone aceptó CarPlay pero no se unió al Wi-Fi del coche. En DiPlay, comprueba que el nombre y la contraseña del punto de acceso guardados coincidan exactamente con los del coche. En el iPhone, activa Acceder automáticamente para esa red.</string>
 </resources>

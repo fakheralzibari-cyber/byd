@@ -11,6 +11,18 @@ object WirelessStartupPolicy {
     const val STABLE_SESSION_MILLIS = 60_000L
 }
 
-enum class WirelessStartupFailure { HOTSPOT_NOT_READY, FIRST_TCP_TIMEOUT, HOTSPOT_CONFIGURATION }
+enum class WirelessStartupFailure {
+    HOTSPOT_NOT_READY,
+    FIRST_TCP_TIMEOUT,
+    HOTSPOT_CONFIGURATION,
+
+    /** The iPhone accepted CarPlay over Bluetooth but never appeared on the Wi-Fi network. */
+    IPHONE_NOT_ON_WIFI,
+}
+
+/** Says which timeout the driver can act on: an iPhone that never joined points at Wi-Fi settings. */
+fun firstTcpTimeoutFailure(iphoneSeenOnNetwork: Boolean?): WirelessStartupFailure =
+    if (iphoneSeenOnNetwork == false) WirelessStartupFailure.IPHONE_NOT_ON_WIFI
+    else WirelessStartupFailure.FIRST_TCP_TIMEOUT
 
 class WirelessStartupException(val reason: WirelessStartupFailure, message: String) : IOException(message)

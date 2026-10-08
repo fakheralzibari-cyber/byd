@@ -119,6 +119,8 @@ class ManualHotspotManager(
             else -> null
         }
         val security = apConfiguration?.security ?: expectedSecurity
+        // A wrong saved password lets the iPhone accept CarPlay but never join the hotspot.
+        val effectivePassphrase = effectiveManualHotspotPassphrase(passphrase, apConfiguration?.passphrase)
         // Keep the existing IPv4-first endpoint selection and also publish the selected AP's
         // scoped IPv6 address, using the same dual-stack policy as existing Wi-Fi connections.
         val hostAddresses = network?.let {
@@ -128,8 +130,13 @@ class ManualHotspotManager(
             "security=$security channelKnown=${channel > 0} " +
             "hardwareAddressKnown=${localInterface.hardwareAddress != null} iface=${localInterface.name} " +
             "family=${if (localInterface.hostAddress is Inet6Address) "IPv6" else "IPv4"} " +
-            "mdnsFamilies=${hostAddresses.joinToString("+") { address -> if (address is Inet6Address) "IPv6" else "IPv4" }}")
-        if (security != Iap2WirelessSecurity.NONE && passphrase.isEmpty()) {
+            "mdnsFamilies=${hostAddresses.joinToString("+") { address -> if (address is Inet6Address) "IPv6" else "IPv4" }} " +
+            "passphraseReadable=${apConfiguration?.passphrase != null} " +
+            "passphraseSource=${if (effectivePassphrase == passphrase) "saved" else "car"}")
+        if (effectivePassphrase != passphrase) {
+            Log.w(TAG, "The saved hotspot password differs from the car's hotspot; sending the car's password")
+        }
+        if (security != Iap2WirelessSecurity.NONE && effectivePassphrase.isEmpty()) {
             throw WirelessStartupException(WirelessStartupFailure.HOTSPOT_CONFIGURATION, "Manual hotspot is secured but no passphrase was provided")
         }
 
@@ -144,7 +151,7 @@ class ManualHotspotManager(
         val observedBandLabel = wifiBandLabel(apConfiguration?.band)
         return WirelessHotspotInfo(
             ssid = expectedSsid,
-            passphrase = passphrase,
+            passphrase = effectivePassphrase,
             security = security,
             channel = channel,
             frequencyMHz = frequencyMHz,
@@ -283,6 +290,7 @@ class ManualHotspotManager(
                 channel = channel,
                 frequencyMHz = wifiChannelToFrequencyMhz(channel, band),
                 security = mapSoftApSecurity(configuration.securityType),
+                passphrase = configuration.passphrase,
             )
         } catch (_: Throwable) {
             null
@@ -312,6 +320,10 @@ class ManualHotspotManager(
                 channel = channel,
                 frequencyMHz = wifiChannelToFrequencyMhz(channel, band),
                 security = mapWifiConfigurationSecurity(configuration),
+                // A quoted value is the passphrase; an unquoted value is a raw PSK or a redaction.
+                passphrase = configuration.preSharedKey
+                    ?.takeIf { it.length >= 2 && it.first() == '"' && it.last() == '"' }
+                    ?.let(::unquote),
             )
         } catch (_: Throwable) {
             null
@@ -368,6 +380,8 @@ class ManualHotspotManager(
         val channel: Int,
         val frequencyMHz: Int?,
         val security: Iap2WirelessSecurity,
+        /** Null when the firmware hides it, which is the common case without system privileges. */
+        val passphrase: String?,
     )
 
     private class LocalHotspotInterface(
@@ -381,6 +395,13 @@ class ManualHotspotManager(
 
     }
 }
+
+/**
+ * The password sent to the iPhone. A readable car hotspot password wins over a saved one that no
+ * longer matches; a hidden, empty or malformed one leaves the saved password in use.
+ */
+internal fun effectiveManualHotspotPassphrase(saved: String, car: String?): String =
+    car?.takeIf { it.length in 8..63 && '\u0000' !in it } ?: saved
 
 private fun ManualHotspotSecurity.toIap2Security(): Iap2WirelessSecurity = when (this) {
     ManualHotspotSecurity.OPEN -> Iap2WirelessSecurity.NONE

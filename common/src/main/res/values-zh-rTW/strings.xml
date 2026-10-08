@@ -653,6 +653,7 @@
     <string name="song_on_hud_description">無導航指引時顯示手機提供的歌曲名稱或歌詞，導航方向和道路名稱優先。</string>
     <string name="hotspot_network_not_ready">熱點網路未就緒</string>
     <string name="first_tcp_timeout">等待 iPhone 接入 CarPlay 超時</string>
+    <string name="iphone_not_on_wifi">iPhone 已接受 CarPlay，但未加入車機 Wi-Fi。請在 DiPlay 中確認儲存的熱點名稱和密碼與車機完全一致，並在 iPhone 上為該網路開啟「自動加入」。</string>
     <string name="wireless_startup_retries_exhausted">自動再試一次已停止，請檢查連線後手動再試一次。</string>
     <string name="retry_carplay_connection">重新連線</string>
     <string name="auto_grant_confirm_msg">尚未確認 ADB 授權。如果車機顯示「允許 USB 偵錯？」提示，請允許。\n\n請勾選「一律允許」並點選「確定」，再按一次此按鈕以完成設定。</string>

@@ -170,6 +170,10 @@ class CarPlayBonjour(
             "bonjourAddressMismatch=${addressMismatchCount.get()} connectProbes=${probeCount.get()} " +
             "connectProbe2xx=${successfulProbeCount.get()} lastProbe=${lastProbe.get()} " +
             "mdnsFamilies=$publishedFamilies"
+
+    /** True once the iPhone's CarPlay control service appeared here, which means it joined this network. */
+    val iphoneSeenOnNetwork: Boolean get() = addedCount.get() > 0 || resolvedCount.get() > 0
+
     private val multicastLock = (context.applicationContext ?: context)
         .getSystemService(WifiManager::class.java)
         .createMulticastLock("carplay-bonjour").apply { setReferenceCounted(false) }
