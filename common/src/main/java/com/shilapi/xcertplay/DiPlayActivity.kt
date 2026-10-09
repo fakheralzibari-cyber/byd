@@ -660,6 +660,14 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             insets
         }
         setContentView(root)
+        // A short fade marks a new page; repaints of the same page stay still. The system's animation
+        // scale applies, so a head unit with animations off shows the page at once.
+        if (!sameDestination && renderedPage != null) {
+            // Between Settings categories the rail stays put and only the category fades in.
+            val fading = if (keepRailPosition) scroll else root
+            fading.alpha = 0f
+            fading.animate().alpha(1f).setDuration(PAGE_FADE_MILLIS).start()
+        }
         ViewCompat.requestApplyInsets(root)
         renderedPage = page
         renderedSettingsCategory = settingsCategory.takeIf { page == "settings" }
@@ -716,7 +724,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             contentDescription = getString(R.string.carplay)
         }, LinearLayout.LayoutParams(logoSize, logoSize))
         addView(label(getString(R.string.diplay), if (compact) 20 else 26, TEXT, true).apply {
-            setPadding(if (compact) dp(8) else dp(12), 0, 0, 0)
+            setPaddingRelative(if (compact) dp(8) else dp(12), 0, 0, 0)
         }, LinearLayout.LayoutParams(0, if (compact) dp(44) else dp(52), 1f))
         addView(appearanceButton(), LinearLayout.LayoutParams(dp(48), dp(48)).apply {
             marginEnd = dp(if (compact) 8 else 12)
@@ -1032,7 +1040,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                 },
                 null,
             )
-            setPadding(dp(8), 0, dp(12), 0)
+            setPaddingRelative(dp(8), 0, dp(12), 0)
             addView(View(this@DiPlayActivity).apply {
                 background = GradientDrawable().apply {
                     setColor(if (selected) ACCENT else Color.TRANSPARENT)
@@ -4133,7 +4141,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     private fun reconnectBar(): View = row().apply {
         gravity = Gravity.CENTER_VERTICAL
         background = rounded(RAIL_SELECTED, RAIL_SELECTED_BORDER)
-        setPadding(dp(20), dp(10), dp(12), dp(10))
+        setPaddingRelative(dp(20), dp(10), dp(12), dp(10))
         addView(label(getString(R.string.settings_reconnect_pending), 16, TEXT), LinearLayout.LayoutParams(0, -2, 1f))
         addView(button(getString(R.string.settings_reconnect_now), true) {
             // No clear(): if connect() stops early (hotspot off, a permission prompt), the change is still pending.
@@ -5024,7 +5032,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
 
     private fun label(value: String, size: Int, color: Int, bold: Boolean = false, centreGlyphs: Boolean = false) =
         (if (centreGlyphs) HeaderTitleView(this) else TextView(this)).apply {
-        text = value; textSize = size.toFloat(); setTextColor(color); gravity = Gravity.CENTER_VERTICAL
+        text = value; textSize = TypeScale.sp(size).toFloat(); setTextColor(color); gravity = Gravity.CENTER_VERTICAL
         typeface = if (bold) Typeface.create("sans-serif-medium", Typeface.NORMAL) else Typeface.create("sans-serif", Typeface.NORMAL)
         setLineSpacing(dp(3).toFloat(), 1f)
     }
@@ -5319,6 +5327,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         private const val APPEARANCE_BUTTON_TAG = "app_appearance_button"
         private const val VALUE_SEPARATOR = " · "
         private const val SEARCH_HIGHLIGHT_MILLIS = 900L
+        private const val PAGE_FADE_MILLIS = 150L
         private const val SPACER = "spacer"
         private const val CONTROL_HEIGHT_DP = 60
         private const val CONTROL_GAP_DP = 12

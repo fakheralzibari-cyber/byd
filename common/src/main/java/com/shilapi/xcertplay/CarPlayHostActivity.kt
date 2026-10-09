@@ -2200,7 +2200,7 @@ class CarPlayHostActivity : ComponentActivity() {
         )
         panel.addView(
             Button(this).apply {
-                text = "X"
+                text = "✕"
                 isAllCaps = false
                 textSize = 22f
                 setTextColor(MENU_PRIMARY)
@@ -2212,7 +2212,8 @@ class CarPlayHostActivity : ComponentActivity() {
                 setOnClickListener { cancelSettingsEdits() }
             },
             FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP or Gravity.START).apply {
-                leftMargin = dp(16)
+                // START gravity needs a start margin, or right-to-left text puts the button against the edge.
+                marginStart = dp(16)
                 topMargin = dp(16)
             },
         )
