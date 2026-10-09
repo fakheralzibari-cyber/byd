@@ -241,6 +241,35 @@ class AdaptiveSettingsUiTest {
         assertFalse(texts(screen).any { it.text == screen.getString(R.string.ready) })
     }
 
+    @Test fun overviewWarnsWhenWheelKeysAreOnButTheirServiceIsOff() {
+        WheelZoomSettings.setSiriKey(context, true)
+        val screen = openSettings()
+        val title = screen.getString(R.string.settings_accessibility_off_title)
+
+        assertTrue(texts(screen).any { it.text == title })
+        assertTrue(texts(screen).any { it.text.contains(screen.getString(R.string.settings_accessibility_off_wheel_keys)) })
+        texts(screen).single { it.text == screen.getString(R.string.settings_notice_hide) }.performClick()
+        assertFalse(texts(screen).any { it.text == title && it.isShown })
+    }
+
+    @Test fun overviewStaysQuietWhenNoFeatureNeedsAccessibility() {
+        val screen = openSettings()
+
+        assertFalse(texts(screen).any { it.text == screen.getString(R.string.settings_accessibility_off_title) })
+    }
+
+    @Test fun aProblemStaysOnScreenAcrossRepaintsUntilDismissed() {
+        val screen = openSettings()
+        val message = screen.getString(R.string.wheel_keys_no_settings)
+        ReflectionHelpers.callInstanceMethod<Unit>(screen, "showProblem",
+            ReflectionHelpers.ClassParameter.from(String::class.java, message))
+        ReflectionHelpers.callInstanceMethod<Unit>(screen, "render")
+
+        assertTrue(texts(screen).any { it.text == message && it.isShown })
+        texts(screen).single { it.text == screen.getString(R.string.settings_notice_dismiss) }.performClick()
+        assertFalse(texts(screen).any { it.text == message && it.isShown })
+    }
+
     @Test fun chosenPhoneWithMissingManualHotspotOffersConnectionSetup() {
         AirPlayPersistence.saveWirelessEnabled(context, true)
         AirPlayPersistence.saveWirelessHotspotMode(context, WirelessHotspotMode.MANUAL)

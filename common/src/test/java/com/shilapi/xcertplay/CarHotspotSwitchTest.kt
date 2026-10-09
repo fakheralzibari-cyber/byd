@@ -31,6 +31,7 @@ import org.robolectric.annotation.Implements
 import org.robolectric.shadows.ShadowAlertDialog
 import org.robolectric.shadows.ShadowSettings
 import org.robolectric.shadows.ShadowToast
+import org.robolectric.util.ReflectionHelpers
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29], qualifiers = "en", manifest = Config.NONE, shadows = [CarHotspotSwitchTest.Grant::class,
@@ -101,7 +102,7 @@ class CarHotspotSwitchTest {
         assertFalse(CarHotspotSettings.enabled(activity))
         assertFalse(hotspotSwitch().isChecked)
         assertTrue(hotspotSwitch().isEnabled)
-        assertEquals(activity.getString(R.string.adb_not_approved), ShadowToast.getTextOfLatestToast())
+        assertEquals(activity.getString(R.string.adb_not_approved), ReflectionHelpers.getField<String>(activity, "problem"))
     }
 
     @Test fun adbSuccessWithoutActualPermissionDoesNotEnableTheSwitch() {
@@ -109,7 +110,7 @@ class CarHotspotSwitchTest {
         hotspotSwitch().isChecked = true
         awaitGrant(); completeGrant()
         assertFalse(CarHotspotSettings.enabled(activity))
-        assertEquals(activity.getString(R.string.hotspot_permission_failed), ShadowToast.getTextOfLatestToast())
+        assertEquals(activity.getString(R.string.hotspot_permission_failed), ReflectionHelpers.getField<String>(activity, "problem"))
     }
 
     @Test fun anExistingPermissionStillWaitsForAdbBeforeEnabling() {
@@ -214,7 +215,7 @@ class CarHotspotSwitchTest {
         assertFalse(control.isChecked)
         assertTrue(control.isEnabled)
         assertFalse(CarHotspotSettings.enabled(activity))
-        assertEquals(activity.getString(R.string.adb_off), ShadowToast.getTextOfLatestToast())
+        assertEquals(activity.getString(R.string.adb_off), ReflectionHelpers.getField<String>(activity, "problem"))
     }
 
     @Test fun returningFromApprovalBeforeCompletionKeepsThePage() {

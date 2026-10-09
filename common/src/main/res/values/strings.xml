@@ -787,4 +787,13 @@
     <string name="setup_badge_adb">Needs ADB over network</string>
     <string name="setup_done_title">You’re ready</string>
     <string name="setup_done_description">Connect your iPhone now. You can open this guide again from Settings.</string>
+    <string name="settings_accessibility_off_title">Accessibility is off for DiPlay</string>
+    <string name="settings_accessibility_off_wheel_keys">Your wheel keys and call buttons won’t work until it’s back on.</string>
+    <string name="settings_accessibility_off_usb">DiPlay can’t accept the USB prompt for you until it’s back on.</string>
+    <string name="settings_accessibility_off_where">On many BYD cars it’s in Application management → Accessibility. A system update can turn it off.</string>
+    <string name="settings_accessibility_turn_on">Turn on</string>
+    <string name="settings_accessibility_stop_usb">Don’t auto-accept USB</string>
+    <string name="settings_accessibility_turn_on_manually">Turn on DiPlay in the accessibility settings that just opened, then come back.</string>
+    <string name="settings_notice_hide">Hide</string>
+    <string name="settings_notice_dismiss">Dismiss</string>
 </resources>

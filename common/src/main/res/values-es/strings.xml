@@ -690,4 +690,13 @@
     <string name="setup_done_title">Todo listo</string>
     <string name="setup_done_description">Conecta tu iPhone ahora. Puedes volver a abrir esta guía desde Ajustes.</string>
     <string name="iphone_not_on_wifi">El iPhone aceptó CarPlay pero no se unió al Wi-Fi del coche. En DiPlay, comprueba que el nombre y la contraseña del punto de acceso guardados coincidan exactamente con los del coche. En el iPhone, activa Acceder automáticamente para esa red.</string>
+    <string name="settings_accessibility_off_title">La accesibilidad de DiPlay está desactivada</string>
+    <string name="settings_accessibility_off_wheel_keys">Los botones del volante y de llamada no funcionarán hasta que la vuelvas a activar.</string>
+    <string name="settings_accessibility_off_usb">DiPlay no puede aceptar el aviso de USB por ti hasta que la vuelvas a activar.</string>
+    <string name="settings_accessibility_off_where">En muchos BYD está en Gestión de aplicaciones → Accesibilidad. Una actualización del sistema puede desactivarla.</string>
+    <string name="settings_accessibility_turn_on">Activar</string>
+    <string name="settings_accessibility_stop_usb">No aceptar USB automáticamente</string>
+    <string name="settings_accessibility_turn_on_manually">Activa DiPlay en los ajustes de accesibilidad que se acaban de abrir y vuelve.</string>
+    <string name="settings_notice_hide">Ocultar</string>
+    <string name="settings_notice_dismiss">Descartar</string>
 </resources>

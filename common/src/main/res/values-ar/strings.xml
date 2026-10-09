@@ -690,4 +690,13 @@
     <string name="setup_done_title">أنت جاهز</string>
     <string name="setup_done_description">اتصل بـ iPhone الآن. يمكنك فتح هذا الدليل مرة أخرى من الإعدادات.</string>
     <string name="iphone_not_on_wifi">قبل iPhone تشغيل CarPlay لكنه لم ينضم إلى شبكة Wi-Fi في السيارة. في DiPlay، تأكد من أن اسم نقطة الاتصال وكلمة المرور المحفوظين يطابقان السيارة تمامًا. على iPhone، فعّل الانضمام التلقائي لهذه الشبكة.</string>
+    <string name="settings_accessibility_off_title">إمكانية الوصول متوقفة لـ DiPlay</string>
+    <string name="settings_accessibility_off_wheel_keys">لن تعمل أزرار المقود وأزرار المكالمات حتى تعيد تشغيلها.</string>
+    <string name="settings_accessibility_off_usb">لا يستطيع DiPlay قبول طلب USB نيابةً عنك حتى تعيد تشغيلها.</string>
+    <string name="settings_accessibility_off_where">في كثير من سيارات BYD تجدها في إدارة التطبيقات ← إمكانية الوصول. قد يوقفها تحديث النظام.</string>
+    <string name="settings_accessibility_turn_on">تشغيل</string>
+    <string name="settings_accessibility_stop_usb">لا تقبل USB تلقائيًا</string>
+    <string name="settings_accessibility_turn_on_manually">فعّل DiPlay في إعدادات إمكانية الوصول التي فُتحت، ثم ارجع.</string>
+    <string name="settings_notice_hide">إخفاء</string>
+    <string name="settings_notice_dismiss">تجاهل</string>
 </resources>

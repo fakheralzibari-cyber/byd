@@ -750,4 +750,13 @@
     <string name="setup_badge_adb">需要网络 ADB</string>
     <string name="setup_done_title">准备就绪</string>
     <string name="setup_done_description">现在连接你的 iPhone。之后可在设置中再次打开本向导。</string>
+    <string name="settings_accessibility_off_title">DiPlay 的无障碍服务已关闭</string>
+    <string name="settings_accessibility_off_wheel_keys">重新开启前，方向盘按键和通话按键将无法使用。</string>
+    <string name="settings_accessibility_off_usb">重新开启前，DiPlay 无法替你确认 USB 提示。</string>
+    <string name="settings_accessibility_off_where">在许多比亚迪车型上，它位于“应用管理 → 无障碍”。系统更新可能会将其关闭。</string>
+    <string name="settings_accessibility_turn_on">开启</string>
+    <string name="settings_accessibility_stop_usb">不自动确认 USB</string>
+    <string name="settings_accessibility_turn_on_manually">请在刚打开的无障碍设置中开启 DiPlay，然后返回。</string>
+    <string name="settings_notice_hide">隐藏</string>
+    <string name="settings_notice_dismiss">关闭</string>
 </resources>

@@ -66,7 +66,7 @@ class CarButtonImagePickerTest {
         contentMissing = true
         choose.performClick()
         assertEquals(listOf("document", "content", "document", "content"), events)
-        assertEquals(activity.getString(R.string.this_head_unit_has_no_image_picker), ShadowToast.getTextOfLatestToast())
+        assertEquals(activity.getString(R.string.this_head_unit_has_no_image_picker), ReflectionHelpers.getField<String>(activity, "problem"))
     }
 
     @Test fun hostChoiceUsesDocumentPickerAndSameCropFlowThenClearsCancellationState() = withHost { activity ->

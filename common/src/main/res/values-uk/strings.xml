@@ -702,4 +702,13 @@
     <string name="setup_done_title">Усе готово</string>
     <string name="setup_done_description">Під’єднайте iPhone зараз. Цей майстер можна знову відкрити в налаштуваннях.</string>
     <string name="iphone_not_on_wifi">iPhone прийняв CarPlay, але не підключився до Wi-Fi автомобіля. У DiPlay перевірте, що збережені назва й пароль точки доступу точно збігаються з автомобілем. На iPhone увімкніть «Автоприєднання» для цієї мережі.</string>
+    <string name="settings_accessibility_off_title">Спеціальні можливості для DiPlay вимкнено</string>
+    <string name="settings_accessibility_off_wheel_keys">Кнопки керма й виклику не працюватимуть, доки ви їх не ввімкнете.</string>
+    <string name="settings_accessibility_off_usb">DiPlay не зможе підтверджувати запит USB за вас, доки ви їх не ввімкнете.</string>
+    <string name="settings_accessibility_off_where">У багатьох BYD це розділ «Керування застосунками → Спеціальні можливості». Оновлення системи може їх вимкнути.</string>
+    <string name="settings_accessibility_turn_on">Увімкнути</string>
+    <string name="settings_accessibility_stop_usb">Не підтверджувати USB</string>
+    <string name="settings_accessibility_turn_on_manually">Увімкніть DiPlay у відкритих налаштуваннях спеціальних можливостей і поверніться.</string>
+    <string name="settings_notice_hide">Сховати</string>
+    <string name="settings_notice_dismiss">Закрити</string>
 </resources>

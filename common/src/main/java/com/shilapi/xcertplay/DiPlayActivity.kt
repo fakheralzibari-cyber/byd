@@ -173,6 +173,13 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
     private var settingsRailScroll: ScrollView? = null
     private var reconnectBar: View? = null
     private var readinessCard: LinearLayout? = null
+    private var accessibilityNotice: LinearLayout? = null
+    private var renderedAccessibilityGaps: List<AccessibilityGap>? = null
+    // Hidden until DiPlay restarts: some head units have no way to turn the service back on.
+    private var accessibilityNoticeHidden = false
+    private var problemHost: LinearLayout? = null
+    // A failure the driver must see; unlike a toast it stays until they dismiss it.
+    private var problem: String? = null
     private var searchIndexSink: MutableList<String>? = null
     private var renderedReadiness: SettingsReadiness? = null
     private var renderedPage: String? = null
@@ -589,6 +596,9 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         status = null; connectButton = null; disconnectButton = null; lastRunning = null; carButtonCard = null
         reconnectBar = null
         readinessCard = null
+        accessibilityNotice = null
+        renderedAccessibilityGaps = null
+        problemHost = null
         exportButton = null
         bydAdbControls = null
         adbSwitches.clear()
@@ -602,10 +612,11 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         val content = column()
         scroll.addView(content)
         val header = if (page == "settings") settingsHeader(compact) else standardHeader(compact)
+        val problems = column().also { problemHost = it }
         val root: View = if (page == "settings" && isExpandedSettingsLayout) {
             content.setPadding(0, 0, 0, dp(32))
             settingsCategoryContent(content)
-            expandedSettingsShell(header, scroll)
+            expandedSettingsShell(header, scroll, problems)
         } else {
             if (compact) content.setPadding(dp(12), dp(10), dp(12), dp(12))
             else content.setPadding(dp(32), dp(24), dp(32), dp(32))
@@ -625,7 +636,13 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                 "about" -> about(content)
                 else -> home(content)
             }
-            scroll
+            // Outside the scroll, so a problem is visible wherever the driver has scrolled to.
+            problems.setPadding(dp(if (compact) 12 else 32), dp(if (compact) 10 else 16), dp(if (compact) 12 else 32), 0)
+            column().apply {
+                setBackgroundColor(BG)
+                addView(problems)
+                addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+            }
         }
         // Keep the background full screen, but all controls inside the camera and
         // visible system/keyboard bounds. Insets are physical pixels, not scaled dp.
@@ -646,6 +663,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         ViewCompat.requestApplyInsets(root)
         renderedPage = page
         renderedSettingsCategory = settingsCategory.takeIf { page == "settings" }
+        refreshProblem()
         refreshStatus()
         focusSnapshot?.let { snapshot ->
             root.doOnLayout {
@@ -662,9 +680,10 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
         }
         pendingScrollY = previousScrollY
         // A stopped window still dispatches pre-draw but skips layout, so wait for a real layout;
-        // the listener stays on this view and goes away with it.
+        // the listener stays on this view and goes away with it. It is on the root, after the focus
+        // restore, so focusing a control cannot scroll the page away from its restored position.
         previousScrollY?.let { y ->
-            scroll.doOnLayout {
+            root.doOnLayout {
                 if (rootScroll === scroll) {
                     scroll.scrollTo(0, y)
                     pendingScrollY = null
@@ -872,16 +891,106 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             body.addView(right)
         }
         setupError?.let { body.addView(label(it, 16, WARNING).apply { setPadding(0, dp(16), 0, 0) }) }
+        content.addView(accessibilityNoticeHost(), LinearLayout.LayoutParams(-1, -2))
         content.addView(body)
     }
 
+    private fun accessibilityNoticeHost(): LinearLayout = column().also {
+        accessibilityNotice = it
+        renderedAccessibilityGaps = null
+        refreshAccessibilityNotice()
+    }
+
+    private fun refreshAccessibilityNotice() {
+        val host = accessibilityNotice ?: return
+        val gaps = if (accessibilityNoticeHidden) emptyList() else AccessibilityHealth.gaps(this)
+        if (gaps == renderedAccessibilityGaps) return
+        renderedAccessibilityGaps = gaps
+        host.removeAllViews()
+        host.visibility = if (gaps.isEmpty()) View.GONE else View.VISIBLE
+        if (gaps.isEmpty()) return
+        val message = buildList {
+            if (AccessibilityGap.WHEEL_KEYS in gaps) add(getString(R.string.settings_accessibility_off_wheel_keys))
+            if (AccessibilityGap.USB_AUTO_ALLOW in gaps) add(getString(R.string.settings_accessibility_off_usb))
+            add(getString(R.string.settings_accessibility_off_where))
+        }.joinToString("\n")
+        val actions = buildList<Pair<String, () -> Unit>> {
+            add(getString(R.string.settings_accessibility_turn_on) to { turnAccessibilityBackOn(gaps) })
+            if (AccessibilityGap.USB_AUTO_ALLOW in gaps && AccessibilityGap.WHEEL_KEYS !in gaps) {
+                add(getString(R.string.settings_accessibility_stop_usb) to {
+                    AccessibilityHealth.setUsbAutoAllowExpected(this@DiPlayActivity, false)
+                    refreshAccessibilityNotice()
+                })
+            }
+            add(getString(R.string.settings_notice_hide) to {
+                accessibilityNoticeHidden = true
+                refreshAccessibilityNotice()
+            })
+        }
+        host.addView(noticeCard(getString(R.string.settings_accessibility_off_title), message, actions),
+            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(SETTINGS_BLOCK_GAP_DP) })
+    }
+
+    /** The car's own adb turns the services on in place; without it the driver uses the system page. */
+    private fun turnAccessibilityBackOn(gaps: List<AccessibilityGap>) {
+        if (AccessibilityGap.USB_AUTO_ALLOW in gaps) {
+            autoApplyPermissions()
+            return
+        }
+        Thread({
+            val access = WheelKeyService.enableOverAdb(this)
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (access != com.shilapi.xcertplay.adb.LocalAdb.Access.READY) {
+                    showProblem(getString(if (UsbAutoConfirmService.openSettings(this)) R.string.settings_accessibility_turn_on_manually
+                        else R.string.wheel_keys_no_settings))
+                }
+                refreshAccessibilityNotice()
+            }
+        }, "diplay-accessibility-restore").start()
+    }
+
+    /** A warning that stays on screen until the driver acts on it. */
+    private fun noticeCard(title: String?, message: String, actions: List<Pair<String, () -> Unit>>): LinearLayout = column().apply {
+        background = rounded(SURFACE, WARNING)
+        setPadding(dp(20), dp(16), dp(20), dp(16))
+        title?.let { addView(label(it, 18, WARNING, true)) }
+        addView(label(message, 16, TEXT).apply { if (title != null) setPadding(0, dp(6), 0, 0) })
+        if (actions.isEmpty()) return@apply
+        addView(row().apply {
+            actions.forEachIndexed { index, (text, click) ->
+                addView(button(text, index == 0, click), LinearLayout.LayoutParams(0, dp(52), 1f).apply {
+                    if (index > 0) marginStart = dp(12)
+                })
+            }
+        }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(12) })
+    }
+
+    private fun showProblem(message: String) {
+        problem = message
+        refreshProblem()
+    }
+
+    private fun refreshProblem() {
+        val host = problemHost ?: return
+        host.removeAllViews()
+        val message = problem
+        host.visibility = if (message == null) View.GONE else View.VISIBLE
+        if (message == null) return
+        host.addView(noticeCard(null, message, listOf(getString(R.string.settings_notice_dismiss) to {
+            problem = null
+            refreshProblem()
+        })), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(SETTINGS_BLOCK_GAP_DP) })
+    }
+
     // Only the category scrolls, so the rail keeps showing where the driver is.
-    private fun expandedSettingsShell(header: View, categoryScroll: ScrollView): LinearLayout = column().apply {
+    private fun expandedSettingsShell(header: View, categoryScroll: ScrollView, problems: View): LinearLayout = column().apply {
         setBackgroundColor(BG)
         setPadding(dp(32), dp(24), dp(32), 0)
         addView(header)
         addView(space(24))
         addView(reconnectBar(), LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(SETTINGS_BLOCK_GAP_DP) })
+        addView(problems)
         val split = row().apply { gravity = Gravity.TOP }
         // The rail scrolls on its own only when the window is too short for every destination.
         split.addView(ScrollView(this@DiPlayActivity).apply {
@@ -990,6 +1099,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
 
     private fun settingsOverview(content: LinearLayout) {
         settingsPageTitle(content, getString(R.string.settings_overview), getString(R.string.settings_overview_subtitle))
+        content.addView(accessibilityNoticeHost(), LinearLayout.LayoutParams(-1, -2))
         val readiness = card().apply {
             setPadding(dp(20), dp(if (isExpandedSettingsLayout) 16 else 12), dp(20), dp(if (isExpandedSettingsLayout) 16 else 12))
         }
@@ -1479,7 +1589,8 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             ) { enabled ->
                 if (enabled) promptEnableUsbAutoConfirm()
                 else {
-                    if (!UsbAutoConfirmService.openSettings(this)) toast(getString(R.string.wheel_keys_no_settings))
+                    AccessibilityHealth.setUsbAutoAllowExpected(this, false)
+                    if (!UsbAutoConfirmService.openSettings(this)) showProblem(getString(R.string.wheel_keys_no_settings))
                     render()
                 }
             }
@@ -2228,7 +2339,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                 adbStatus?.setText(if (ready) R.string.adb_access_ready else message)
                 if (ready) save()
                 updateAdbSwitches()
-                toast(getString(message))
+                if (ready) toast(getString(message)) else showProblem(getString(message))
                 runPendingAutomaticVehicleValidation()
                 // Re-enable the vehicle controls disabled while this authorization was outstanding.
                 if (page == "settings" && bydVehicleAdvancedExpanded) render()
@@ -2695,7 +2806,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
 
     private fun showChannelDialog(title: String, current: Int, navigation: Boolean, onApply: (Int) -> Unit) {
         val preview = AudioChannelPreview { channel ->
-            toast(getString(R.string.contrib_audio_home_channel_preview_unavailable, channel))
+            showProblem(getString(R.string.contrib_audio_home_channel_preview_unavailable, channel))
         }
         val channels = AirPlayPersistence.AUDIO_CHANNELS
         val labels = channels.map(Int::toString).toTypedArray()
@@ -2911,7 +3022,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             }
             .setNeutralButton(getString(R.string.btn_open_accessibility_setting)) { _, _ ->
                 if (!UsbAutoConfirmService.openSettings(this)) {
-                    toast(getString(R.string.wheel_keys_no_settings))
+                    showProblem(getString(R.string.wheel_keys_no_settings))
                 }
             }
             .setNegativeButton(getString(R.string.cancel)) { _, _ ->
@@ -2981,7 +3092,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
 
         val autoConfirmOn = UsbPermissionSetup.Permission.ACCESSIBILITY.granted(this)
         body.addView(button(if (autoConfirmOn) getString(R.string.usb_auto_confirm_status_on) else getString(R.string.btn_open_accessibility_setting), false) {
-            if (!UsbAutoConfirmService.openSettings(this)) toast(getString(R.string.wheel_keys_no_settings))
+            if (!UsbAutoConfirmService.openSettings(this)) showProblem(getString(R.string.wheel_keys_no_settings))
         }, matchButton(0, 56))
 
         val overlayOn = CenterMapOverlay.permitted(this)
@@ -3116,7 +3227,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                     val access = WheelKeyService.enableOverAdb(this)
                     runOnUiThread {
                         if (access != com.shilapi.xcertplay.adb.LocalAdb.Access.READY) {
-                            toast(getString(R.string.wheel_keys_adb_failed, access.name))
+                            showProblem(getString(R.string.wheel_keys_adb_failed, access.name))
                         }
                         render()
                     }
@@ -3124,7 +3235,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             }, matchButton(10, 56))
             card.addView(button(getString(R.string.wheel_keys_open_settings), false) {
                 runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                    .onFailure { toast(getString(R.string.wheel_keys_no_settings)) }
+                    .onFailure { showProblem(getString(R.string.wheel_keys_no_settings)) }
             }, matchButton(10, 56))
         }
     }
@@ -3155,7 +3266,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                     applyPendingAppearanceRender()
                 })
             if (started) assign.text = getString(R.string.wheel_key_press, name)
-            else toast(getString(R.string.wheel_keys_service_off))
+            else showProblem(getString(R.string.wheel_keys_service_off))
         }
         card.addView(assign, matchButton(10, 56))
     }
@@ -3252,7 +3363,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             Thread({
                 val access = WheelKeyService.enableOverAdb(this)
                 if (access != com.shilapi.xcertplay.adb.LocalAdb.Access.READY) {
-                    runOnUiThread { toast(getString(R.string.wheel_keys_adb_failed, access.name)) }
+                    runOnUiThread { showProblem(getString(R.string.wheel_keys_adb_failed, access.name)) }
                 }
             }, "diplay-call-keys-enable").start()
         }
@@ -4325,7 +4436,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                 openDocument = { iconDocumentPicker.launch(arrayOf("image/*")) },
                 getContent = { iconPicker.launch("image/*") },
                 documentPickerIsSystem = documentPickerIsSystem(),
-            ).onFailure { toast(getString(R.string.this_head_unit_has_no_image_picker)) }
+            ).onFailure { showProblem(getString(R.string.this_head_unit_has_no_image_picker)) }
         }, matchButton(16, 60))
         if (custom != null) parent.addView(button(getString(R.string.default_icon), false) {
             AirPlayPersistence.clearCustomAirPlayIcon(this)
@@ -4395,14 +4506,14 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
 
     private fun connect(wireless: Boolean) {
         startupHotspotCancelled = true
-        if (wireless && pendingCarHotspotSetup) { toast(getString(R.string.save_your_hotspot_details_in_connection_setup_first)); page = "connection"; render(); return }
-        if (setupError != null) { toast(setupError!!); return }
+        if (wireless && pendingCarHotspotSetup) { showProblem(getString(R.string.save_your_hotspot_details_in_connection_setup_first)); page = "connection"; render(); return }
+        if (setupError != null) { showProblem(setupError!!); return }
         if (wireless && AirPlayPersistence.loadWirelessHotspotMode(this) == WirelessHotspotMode.MANUAL &&
             hotspotError(storedSsid(), storedPassword()) != null) {
             pendingCarHotspotSetup = true
             page = "connection"
             render()
-            toast(getString(R.string.save_the_name_and_password_from_the_car_s_hotspot_settings))
+            showProblem(getString(R.string.save_the_name_and_password_from_the_car_s_hotspot_settings))
             return
         }
         if (wireless && carHotspotOff()) { carHotspotOffDialog(); return }
@@ -4483,7 +4594,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
 
     private fun resetWirelessGroup() {
         val manager = getSystemService(android.net.wifi.p2p.WifiP2pManager::class.java)
-        if (manager == null) { toast(getString(R.string.this_head_unit_does_not_support_wi_fi_direct)); return }
+        if (manager == null) { showProblem(getString(R.string.this_head_unit_does_not_support_wi_fi_direct)); return }
         val channel = manager.initialize(this, mainLooper, null)
         try {
             manager.requestGroupInfo(channel) { group ->
@@ -4496,7 +4607,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                                 when {
                                     remaining == null -> { channel.closeCompat(); if (!isFinishing && !isDestroyed) connect(true) }
                                     android.os.SystemClock.elapsedRealtime() >= deadline -> {
-                                        channel.closeCompat(); toast(getString(R.string.wi_fi_direct_is_still_busy_close_the_other_projection_app))
+                                        channel.closeCompat(); showProblem(getString(R.string.wi_fi_direct_is_still_busy_close_the_other_projection_app))
                                     }
                                     else -> handler.postDelayed({ waitUntilRemoved() }, 200)
                                 }
@@ -4504,7 +4615,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
                         }
                         waitUntilRemoved()
                     }
-                    override fun onFailure(reason: Int) { channel.closeCompat(); toast(getString(R.string.could_not_reset_wi_fi_direct_close_the_other_projection_ap)) }
+                    override fun onFailure(reason: Int) { channel.closeCompat(); showProblem(getString(R.string.could_not_reset_wi_fi_direct_close_the_other_projection_ap)) }
                 })
             }
         } catch (_: SecurityException) {
@@ -4528,6 +4639,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             lastRunning = running
         }
         connectButton?.isEnabled = setupError == null
+        refreshAccessibilityNotice()
         refreshReconnectBar()
         refreshReadiness()
     }
@@ -4541,9 +4653,10 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             }.getOrNull()
             runOnUiThread {
                 if (!isFinishing && !isDestroyed) {
-                    toast(if (result == com.shilapi.xcertplay.adb.LocalAdb.Access.READY)
-                        getString(R.string.adb_access_ready) else getString(R.string.adb_not_approved))
-                    if (result == com.shilapi.xcertplay.adb.LocalAdb.Access.READY) ClusterActivityOutput.retry()
+                    if (result == com.shilapi.xcertplay.adb.LocalAdb.Access.READY) {
+                        toast(getString(R.string.adb_access_ready))
+                        ClusterActivityOutput.retry()
+                    } else showProblem(getString(R.string.adb_not_approved))
                 }
             }
         }, "adb-cluster-authorize").start()
@@ -4693,7 +4806,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             openSystem(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }.setNegativeButton(getString(R.string.later), null).show()
     }
-    private fun openSystem(intent: Intent) { runCatching { startActivity(intent) }.onFailure { toast(getString(R.string.open_this_setting_from_your_car_s_settings_app)) } }
+    private fun openSystem(intent: Intent) { runCatching { startActivity(intent) }.onFailure { showProblem(getString(R.string.open_this_setting_from_your_car_s_settings_app)) } }
     private fun toast(message: String) { Toast.makeText(this, message, Toast.LENGTH_LONG).show() }
 
     private fun playTestTone(streamType: Int) {
@@ -4715,7 +4828,7 @@ class DiPlayActivity : ComponentActivity(), AppAppearanceOwner {
             val state = candidate?.state ?: AudioTrack.STATE_UNINITIALIZED
             candidate?.let { runCatching { it.release() } }
             Log.w("DiPlay", "playTestTone streamType=$streamType unavailable", error)
-            toast(getString(R.string.audio_stream_unavailable, streamType, state))
+            showProblem(getString(R.string.audio_stream_unavailable, streamType, state))
             return
         }
         Log.i("DiPlay", "playTestTone streamType=$streamType state=${track.state} playState=${track.playState}")
